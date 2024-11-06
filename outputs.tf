@@ -16,6 +16,13 @@ output "environments" {
 }
 
 # Configuration profile
+
+output "configuration_profiles" {
+  description = "AppConfig Configuration Profiles"
+  value       = { for k, v in aws_appconfig_configuration_profile.this : k => v }
+}
+
+
 output "configuration_profile_arn" {
   description = "The Amazon Resource Name (ARN) of the AppConfig Configuration Profile"
   value       = try(aws_appconfig_configuration_profile.this[0].arn, null)
@@ -32,20 +39,23 @@ output "configuration_profile_id" {
 }
 
 # Hosted configuration version
-output "hosted_configuration_version_arn" {
-  description = "The Amazon Resource Name (ARN) of the AppConfig hosted configuration version"
-  value       = try(aws_appconfig_hosted_configuration_version.this[0].arn, null)
+output "hosted_configuration_version_arns" {
+  description = "Map of hosted configuration version ARNs."
+  value = {
+    for key, resource in aws_appconfig_hosted_configuration_version.this :
+    key => try(resource.arn, null)
+  }
 }
 
-output "hosted_configuration_version_id" {
-  description = "The AppConfig application ID, configuration profile ID, and version number separated by a slash (/)"
-  value       = try(aws_appconfig_hosted_configuration_version.this[0].id, null)
-}
+# output "hosted_configuration_version_id" {
+#   description = "The AppConfig application ID, configuration profile ID, and version number separated by a slash (/)"
+#   value       = try(aws_appconfig_hosted_configuration_version.this[0].id, null)
+# }
 
-output "hosted_configuration_version_version_number" {
-  description = "The version number of the hosted configuration"
-  value       = try(aws_appconfig_hosted_configuration_version.this[0].version_number, null)
-}
+# output "hosted_configuration_version_version_number" {
+#   description = "The version number of the hosted configuration"
+#   value       = try(aws_appconfig_hosted_configuration_version.this[0].version_number, null)
+# }
 
 # Deployment strategy
 output "deployment_strategy_arn" {
@@ -59,10 +69,10 @@ output "deployment_strategy_id" {
 }
 
 # Deployment
-output "deployments" {
-  description = "The AppConfig deployments"
-  value       = aws_appconfig_deployment.this
-}
+# output "deployments" {
+#   description = "The AppConfig deployments"
+#   value       = aws_appconfig_deployment.this
+# }
 
 # Retrieval role
 output "retrieval_role_arn" {

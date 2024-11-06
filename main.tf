@@ -2,6 +2,7 @@ locals {
   retrieval_role_arn         = var.create_retrieval_role ? try(aws_iam_role.retrieval[0].arn, null) : var.config_profile_retrieval_role_arn
   retrieval_role_name        = var.retrieval_role_use_name_prefix ? null : coalesce(var.retrieval_role_name, var.name)
   retrieval_role_name_prefix = var.retrieval_role_use_name_prefix ? "${coalesce(var.retrieval_role_name, var.name)}-" : null
+  is_windows                 = substr(pathexpand("~"), 0, 1) == "/" ? false : true
 }
 
 resource "aws_appconfig_application" "this" {
@@ -17,7 +18,8 @@ resource "aws_appconfig_application" "this" {
 
   # Hack to ensure permissions are available before config is retrieved by deployment
   provisioner "local-exec" {
-    command = "sleep 10"
+    command     = "sleep 10"
+    interpreter = local.is_windows ? ["PowerShell", "-Command"] : []
   }
 
   tags = var.tags
@@ -42,38 +44,37 @@ resource "aws_appconfig_environment" "this" {
 }
 
 resource "aws_appconfig_configuration_profile" "this" {
-  count = var.create ? 1 : 0
+  for_each = var.create ? { for idx, cp in var.config_profiles : idx => cp } : {}
 
   application_id = aws_appconfig_application.this[0].id
 
-  name        = coalesce(var.config_profile_name, var.name)
-  description = coalesce(var.config_profile_description, var.description)
-  type        = var.config_profile_type
+  name        = each.value.name
+  description = coalesce(each.value.description, var.description)
+  type        = each.value.type
 
-  location_uri       = var.config_profile_location_uri
-  retrieval_role_arn = var.use_hosted_configuration ? null : local.retrieval_role_arn
+  location_uri       = each.value.location_uri
+  retrieval_role_arn = var.use_hosted_configuration ? null : each.value.retrieval_role_arn
 
   dynamic "validator" {
-    for_each = var.config_profile_validator
+    for_each = lookup(each.value, "validator", [])
     content {
       content = lookup(validator.value, "content", null)
       type    = lookup(validator.value, "type", null)
     }
   }
 
-  tags = merge(var.tags, var.config_profile_tags)
+  tags = merge(var.tags, lookup(each.value, "tags", {}))
 }
 
 resource "aws_appconfig_hosted_configuration_version" "this" {
-  count = var.create && var.use_hosted_configuration ? 1 : 0
+  for_each = var.create && var.use_hosted_configuration ? { for idx, acp in aws_appconfig_configuration_profile.this : idx => acp } : {}
 
   application_id           = aws_appconfig_application.this[0].id
-  configuration_profile_id = aws_appconfig_configuration_profile.this[0].configuration_profile_id
+  configuration_profile_id = split(":", each.value.id)[0]
 
-  description = coalesce(var.hosted_config_version_description, var.description)
-
-  content      = var.hosted_config_version_content
-  content_type = var.hosted_config_version_content_type
+  description  = lookup(var.hosted_config_version_description, each.key, coalesce(var.description, ""))
+  content      = lookup(var.config_profiles, each.key).content
+  content_type = var.config_profiles[each.key].content_type
 }
 
 resource "aws_appconfig_deployment_strategy" "this" {
@@ -90,19 +91,17 @@ resource "aws_appconfig_deployment_strategy" "this" {
 
   tags = merge(var.tags, var.deployment_strategy_tags)
 }
-
 resource "aws_appconfig_deployment" "this" {
-  for_each = var.create && (var.deployment_configuration_version != null) ? var.environments : {}
-
-  description              = coalesce(var.deployment_description, var.description)
-  application_id           = aws_appconfig_application.this[0].id
-  configuration_profile_id = aws_appconfig_configuration_profile.this[0].configuration_profile_id
-  configuration_version    = var.use_hosted_configuration ? aws_appconfig_hosted_configuration_version.this[0].version_number : var.deployment_configuration_version
-  deployment_strategy_id   = var.create_deployment_strategy ? aws_appconfig_deployment_strategy.this[0].id : var.deployment_strategy_id
-  environment_id           = aws_appconfig_environment.this[each.key].environment_id
-
-  tags = merge(var.tags, var.deployment_tags)
+  for_each = var.create  ? var.deployments_configuration : {}
+    description              = coalesce(each.value.description, var.description)
+    application_id           = aws_appconfig_configuration_profile.this[each.value.configuration_profile_name].application_id
+    configuration_profile_id = aws_appconfig_configuration_profile.this[each.value.configuration_profile_name].configuration_profile_id
+    configuration_version    = var.use_hosted_configuration ? aws_appconfig_hosted_configuration_version.this[each.value.configuration_profile_name].version_number : each.value.configuration_version
+    deployment_strategy_id   = var.create_deployment_strategy ? aws_appconfig_deployment_strategy.this[0].id : var.deployment_strategy_id
+    environment_id           = aws_appconfig_environment.this[each.value.environment_name].environment_id
+    tags = merge(var.tags, each.value.tags)
 }
+
 
 ################################################################################
 # Configuration retrieval role
@@ -216,6 +215,8 @@ resource "aws_iam_role" "retrieval" {
   # give IAM time to propagate or else assume role fails
   provisioner "local-exec" {
     command = "sleep 5"
+    # Ensure windows always uses PowerShell, linux/mac use their default shell.
+    interpreter = local.is_windows ? ["PowerShell", "-Command"] : []
   }
 
   tags = merge(var.tags, var.retrieval_role_tags)

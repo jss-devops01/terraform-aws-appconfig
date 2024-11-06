@@ -30,47 +30,34 @@ variable "environments" {
   default     = {}
 }
 
-# Configuration profile
-variable "config_profile_name" {
-  description = "The name for the configuration profile. Must be between 1 and 64 characters in length"
-  type        = string
-  default     = null
-}
-
-variable "config_profile_description" {
-  description = "The description of the configuration profile. Can be at most 1024 characters"
-  type        = string
-  default     = null
-}
-
-variable "config_profile_type" {
-  description = "Type of configurations contained in the profile. Valid values: `AWS.AppConfig.FeatureFlags` and `AWS.Freeform`"
-  type        = string
-  default     = null
-}
-
-variable "config_profile_location_uri" {
-  description = "A URI to locate the configuration. You can specify the AWS AppConfig hosted configuration store, Systems Manager (SSM) document, an SSM Parameter Store parameter, or an Amazon S3 object"
-  type        = string
-  default     = "hosted"
-}
-
 variable "config_profile_retrieval_role_arn" {
-  description = "The ARN of an IAM role with permission to access the configuration at the specified `location_uri`. A retrieval role ARN is not required for configurations stored in the AWS AppConfig `hosted` configuration store. It is required for all other sources that store your configuration"
+  description = "The ARN of an IAM role with permission to access the configuration."
   type        = string
   default     = null
 }
 
-variable "config_profile_validator" {
-  description = "A set of methods for validating the configuration. Maximum of 2"
-  type        = list(map(any))
-  default     = []
-}
-
-variable "config_profile_tags" {
-  description = "A map of additional tags to apply to the configuration profile"
-  type        = map(string)
-  default     = {}
+# Configuration profile
+variable "config_profiles" {
+  description = <<-EOT
+    A list of configuration profiles. Each profile should be an object with the following attributes:
+    - name (string)
+    - description (string, optional)
+    - type (string)
+    - location_uri (string)
+    - validator (list of maps, optional)
+    - tags (map of strings, optional)
+  EOT
+  type = map(object({
+    name         = string
+    description  = optional(string)
+    type         = optional(string)
+    location_uri = optional(string, "hosted")
+    validator    = optional(list(map(any)), [])
+    tags         = optional(map(string), {})
+    content      = optional(string, "")
+    content_type = optional(string, "text/plain")
+  }))
+  default = {}
 }
 
 # Configuration retrieval role
@@ -167,20 +154,20 @@ variable "use_s3_configuration" {
 
 variable "hosted_config_version_description" {
   description = "A description of the configuration"
-  type        = string
-  default     = null
+  type        = map(string)
+  default     = {}
 }
 
 variable "hosted_config_version_content" {
   description = "The content of the configuration or the configuration data"
-  type        = string
-  default     = null
+  type        = map(string)
+  default     = {}
 }
 
 variable "hosted_config_version_content_type" {
   description = "A standard MIME type describing the format of the configuration content. For more information, see [Content-Type](https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17)"
-  type        = string
-  default     = null
+  type        = map(string)
+  default     = {}
 }
 
 # Deployment strategy
@@ -244,21 +231,19 @@ variable "deployment_strategy_tags" {
   default     = {}
 }
 
-# Deployment
-variable "deployment_description" {
-  description = "A description of the deployment. Can be at most 1024 characters"
-  type        = string
-  default     = null
-}
+# Deployments
 
-variable "deployment_configuration_version" {
-  description = "The configuration version to deploy. Can be at most 1024 characters"
-  type        = string
-  default     = null
-}
-
-variable "deployment_tags" {
-  description = "A map of additional tags to apply to the deployment"
-  type        = map(string)
-  default     = {}
+variable "deployments_configuration" {
+  description = "Map of deployment configurations for each environment"
+  type = map(object({
+    application_name           = string
+    configuration_profile_name = string
+    configuration_version    = optional(string, "1")
+    deployment_strategy_name   = string
+    description              = optional(string)
+    environment_name           = string
+    kms_key_identifier       = optional(string)
+    tags                     = optional(map(string))
+  }))
+  default = {}
 }
