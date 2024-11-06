@@ -69,10 +69,26 @@ output "deployment_strategy_id" {
 }
 
 # Deployment
-# output "deployments" {
-#   description = "The AppConfig deployments"
-#   value       = aws_appconfig_deployment.this
-# }
+output "deployments2" {
+  description = "The AppConfig deployments"
+  value       = { for k, v in aws_appconfig_deployment.this : k => v }
+}
+
+# Deployment
+output "deployments" {
+  description = "The AppConfig deployments"
+  value       = { for k, v in aws_appconfig_deployment.this : k => {
+    id                      = v.id
+    application_id          = v.application_id
+    environment_id          = v.environment_id
+    configuration_profile_id = v.configuration_profile_id
+    deployment_strategy_id  = v.deployment_strategy_id
+    configuration_version   = v.configuration_version
+    deployment_number       = v.deployment_number
+    arn                     = v.arn
+    description             = v.description
+  } }
+}
 
 # Retrieval role
 output "retrieval_role_arn" {
