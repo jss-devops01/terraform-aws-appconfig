@@ -238,12 +238,12 @@ variable "deployments_configuration" {
   type = map(object({
     application_name           = string
     configuration_profile_name = string
-    configuration_version    = optional(string, "1")
+    configuration_version      = optional(string, "1")
     deployment_strategy_name   = string
-    description              = optional(string)
+    description                = optional(string)
     environment_name           = string
-    kms_key_identifier       = optional(string)
-    tags                     = optional(map(string))
+    kms_key_identifier         = optional(string)
+    tags                       = optional(map(string))
   }))
   default = {}
 }

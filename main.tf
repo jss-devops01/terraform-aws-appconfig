@@ -92,14 +92,14 @@ resource "aws_appconfig_deployment_strategy" "this" {
   tags = merge(var.tags, var.deployment_strategy_tags)
 }
 resource "aws_appconfig_deployment" "this" {
-  for_each = var.create  ? var.deployments_configuration : {}
-    description              = coalesce(each.value.description, var.description)
-    application_id           = aws_appconfig_configuration_profile.this[each.value.configuration_profile_name].application_id
-    configuration_profile_id = aws_appconfig_configuration_profile.this[each.value.configuration_profile_name].configuration_profile_id
-    configuration_version    = var.use_hosted_configuration ? aws_appconfig_hosted_configuration_version.this[each.value.configuration_profile_name].version_number : each.value.configuration_version
-    deployment_strategy_id   = var.create_deployment_strategy ? aws_appconfig_deployment_strategy.this[0].id : var.deployment_strategy_id
-    environment_id           = aws_appconfig_environment.this[each.value.environment_name].environment_id
-    tags = merge(var.tags, each.value.tags)
+  for_each                 = var.create ? var.deployments_configuration : {}
+  description              = coalesce(each.value.description, var.description)
+  application_id           = aws_appconfig_configuration_profile.this[each.value.configuration_profile_name].application_id
+  configuration_profile_id = aws_appconfig_configuration_profile.this[each.value.configuration_profile_name].configuration_profile_id
+  configuration_version    = var.use_hosted_configuration ? aws_appconfig_hosted_configuration_version.this[each.value.configuration_profile_name].version_number : each.value.configuration_version
+  deployment_strategy_id   = var.create_deployment_strategy ? aws_appconfig_deployment_strategy.this[0].id : var.deployment_strategy_id
+  environment_id           = aws_appconfig_environment.this[each.value.environment_name].environment_id
+  tags                     = merge(var.tags, each.value.tags)
 }
 
 
